@@ -11,3 +11,4 @@ dependencies:
     - tqdm==4.64.0
     - torch
     - rdkit
+    - py3Dmol
