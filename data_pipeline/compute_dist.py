@@ -69,11 +69,19 @@ def compute_dist_vec(x, pos_dict):
       output of gen_pos_dict()
 
   OUTPUTS:
-    dist_vec: tensor of size (len(pos_dict),); 
+    dists: tensor of size (len(pos_dict),); 
     elems: list of size len(pos_dict); the elements in the atom, listed in ascending atomic number
   '''
-  elems = pos_dict.keys()
+  elems = list(pos_dict.keys())
   elems.sort()
+  dists = torch.zeros((len(elems),))
+  for idx, elem in enumerate(elems):
+    # distances from x to each instance of the elem
+    elem_dists = torch.linalg.norm(pos_dict[elem] - x, axis = 1)
+    dists[idx] = torch.min(elem_dists)
+    
+  return dists, elems
+
   
 
 
