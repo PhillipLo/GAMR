@@ -40,7 +40,7 @@ class test_misc(unittest.TestCase):
 
 class test_distance_computations(unittest.TestCase):
   '''
-  Tet functions in data_pipeline/compute_dist.py
+  Test functions in data_pipeline/compute_dist.py
   '''
   def test_gen_conformer(self):
     '''
@@ -56,19 +56,12 @@ class test_distance_computations(unittest.TestCase):
       loopy naive construction.
     '''
     for seed, smi in enumerate(_TEST_SMILES_):
-      if seed % 2 == 1:
-        use_symb = True
-      else:
-        use_symb = False
       m = gen_conformer(smi, seed)
-      pos_dict = gen_pos_dict(m, use_symb = use_symb)
+      pos_dict = gen_pos_dict(m)
 
       positions = m.GetConformer().GetPositions()
       for idx, atom in enumerate(m.GetAtoms()):
-        if use_symb:
-          key = atom.GetSymbol()
-        else:
-          key = atom.GetAtomicNum()
+        key = atom.GetAtomicNum()
         value = positions[idx]
 
         # compute distance of atom position from each row of pos_dict values
