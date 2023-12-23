@@ -69,48 +69,60 @@ class test_distance_computations(unittest.TestCase):
         norms = torch.linalg.norm(pos_dict[key] - value, axis = 1)
         self.assertTrue(np.any(np.isclose(0.0, norms, rtol = 0, atol = 1e-7)))
 
-  def test_compute_dist_vec(self):
+  def test_compute_min_dist_grid(self):
     '''
-    Check compute_dist_vec() implementation with naive implementation
+    Check compute_min_dist_grid() against manual computation.
     '''
     for seed, smi in enumerate(_TEST_SMILES_):
-      x = torch.rand((3,))
+      x_range = torch.sort((torch.rand((2,)) - 0.5) * 2).values
+      y_range = torch.sort((torch.rand((2,)) - 0.5) * 2).values
+      z_range = torch.sort((torch.rand((2,)) - 0.5) * 2).values
+
+      N = torch.randint(5, 10, ())
+
+      grid = compute_grid(x_range, y_range, z_range, N)
       m = gen_conformer(smi, seed)
       pos_dict = gen_pos_dict(m)
 
-      dists, elems = compute_dist_vec(x, pos_dict)
+      elem = np.random.choice(list(pos_dict.keys()))
 
-      self.assertTrue(len(elems) == len(pos_dict))
-      self.assertTrue(set(elems) == set(pos_dict.keys()))
+      atom_positions = pos_dict[elem]
 
-      dists_naive = []
-      for elem in pos_dict.keys():
-        elem_dists = []
-        for pos in pos_dict[elem]:
-          elem_dists.append(np.linalg.norm(pos - x))
-        dists_naive.append(np.min(elem_dists))
-      
-      dists = np.sort(dists)
-      dists_naive = np.sort(dists_naive)
+      min_dist_grid = compute_min_dist_grid(grid, atom_positions)
 
-      self.assertTrue(np.allclose(dists, dists_naive))
-        
+      min_dist_grid_naive = np.zeros(shape = (N,N,N))
 
+      for i in range(N):
+        for j in range(N):
+          for k in range(N):
+            dists = []
+            for atom_position in atom_positions:
+              dists.append(np.linalg.norm(atom_position - grid[i, j, k]))
+            min_dist_grid_naive[i, j, k] = np.min(np.array(dists))
+    
+      self.assertTrue(np.allclose(min_dist_grid, min_dist_grid_naive))
 
+  def test_compute_grid(self):
+    '''
+    Check compute_grid() against naive computation.
+    '''
+    for _ in range(_NUM_TRIALS_):
+      x_range = torch.sort((torch.rand((2,)) - 0.5) * 2).values
+      y_range = torch.sort((torch.rand((2,)) - 0.5) * 2).values
+      z_range = torch.sort((torch.rand((2,)) - 0.5) * 2).values
 
+      N = torch.randint(5, 10, ())
 
+      grid = compute_grid(x_range, y_range, z_range, N)
 
-  
-        
+      xs = np.linspace(x_range[0], x_range[1], N)
+      ys = np.linspace(y_range[0], y_range[1], N)
+      zs = np.linspace(z_range[0], z_range[1], N)
 
-
-      
-        
-
-        
-
-
-
+      for i in range(N):
+        for j in range(N):
+          for k in range(N):
+            self.assertTrue(np.allclose(np.array(grid[i, j, k]), np.array([xs[i], ys[j], zs[k]])))
 
 if __name__ == "__main__":
   unittest.main(verbosity = 1)  
