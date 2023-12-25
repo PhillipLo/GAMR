@@ -14,10 +14,15 @@ import numpy as np
 import json
 
 # global constant of atomic symbols
-with open("atomic_symbols.json", "r") as f:
+with open("../atomic_symbols.json", "r") as f:
   _ATOMIC_SYMBOLS_ = json.load(f)
 
-def gen_conformer(mol_smiles, seed):
+
+class EmbeddingError(Exception):
+  pass
+
+
+def gen_conformer(mol_smiles, seed, maxAttempts = 100):
   '''
   Generate a 3D conformer of a molecule from SMILES string.
 
@@ -29,7 +34,9 @@ def gen_conformer(mol_smiles, seed):
   '''
   mol = Chem.MolFromSmiles(mol_smiles)
   mol = Chem.AddHs(mol)
-  EmbedMolecule(mol, randomSeed = seed)
+  success = EmbedMolecule(mol, randomSeed = seed, maxAttempts = maxAttempts)
+  if success != 0:
+    raise EmbeddingError(f"embedding of {mol_smiles} failed after {maxAttempts} attempts")
   Chem.rdMolTransforms.CanonicalizeMol(mol) # canonicalize rigid orientation
   return mol
 
@@ -57,6 +64,30 @@ def gen_pos_dict(mol):
     pos_dict[key] = torch.tensor(np.array(pos_dict[key]))
   
   return pos_dict
+
+
+def get_box(mol):
+  '''
+  Compute the rectangular bounding box for a molecule with a 3D conformation.
+  
+  INPUTS:
+    mol: rdkit.Chem.rdchem.Mol object, with 3D coordinates computed; the output of gen_conformer()
+  OUTPUTS:
+    x_range, y_range, z_range: (2,)-shaped arrays of min/max x/y/z coordinates for atomic positions.
+  '''
+  positions = torch.tensor(mol.GetConformer().GetPositions())
+  x_min = torch.min(positions[:, 0])
+  x_max = torch.max(positions[:, 0])
+  y_min = torch.min(positions[:, 1])
+  y_max = torch.max(positions[:, 1])
+  z_min = torch.min(positions[:, 2])
+  z_max = torch.max(positions[:, 2])
+
+  x_range = torch.tensor([x_min, x_max])
+  y_range = torch.tensor([y_min, y_max])
+  z_range = torch.tensor([z_min, z_max])
+
+  return x_range, y_range, z_range
 
 
 def compute_grid(x_range, y_range, z_range, N):
@@ -120,6 +151,7 @@ OUTPUTS:
     in x_grid
 '''
 
+
 def compute_dist_field(grid, pos_dict):
   '''
   Given a point x in Euclidean R3, compute a vector of length num_atoms where the ith entry is the
@@ -147,15 +179,3 @@ def compute_dist_field(grid, pos_dict):
     dist_field[:, :, :, idx] = elem_dist_field
 
   return dist_field, elems
-
-
-
-
-
-
-
-
-  
-
-
-    
